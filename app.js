@@ -45,6 +45,7 @@ function showAuth() {
   $("appView").hidden = true;
   $("authView").hidden = false;
   $("password").value = "";
+  if ($("password").type === "text") $("pwToggle").click();
   authError("");
 }
 
@@ -80,6 +81,16 @@ function setMode(signUp) {
   authError("");
 }
 $("authToggle").addEventListener("click", () => setMode(!signUpMode));
+
+$("pwToggle").addEventListener("click", () => {
+  const show = $("password").type === "password";
+  $("password").type = show ? "text" : "password";
+  $("eyeOn").hidden = show;
+  $("eyeOff").hidden = !show;
+  $("pwToggle").setAttribute("aria-label", show ? "Hide password" : "Show password");
+  $("pwToggle").setAttribute("aria-pressed", String(show));
+  $("password").focus();
+});
 
 function friendlyAuthError(msg) {
   if (/invalid login credentials/i.test(msg)) return "Wrong email or password.";
