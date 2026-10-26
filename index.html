@@ -24,7 +24,7 @@ button.ghost{background:transparent;color:var(--mute);border:1px solid var(--lin
 button:disabled{opacity:.5;cursor:default}
 label{display:block;font-size:.85rem;color:var(--mute);margin:10px 0 4px}
 input[type=text],input[type=time]{font:inherit;width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
-.times{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.times input{min-width:0;padding:10px 6px}
+.times{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.times input{min-width:0;padding:10px 4px;font-size:.88rem}
 .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .habit h3{margin:0;font-size:1.05rem}
 .meta{color:var(--mute);font-size:.85rem;margin:2px 0 10px}
@@ -44,6 +44,13 @@ input[type=text],input[type=time]{font:inherit;width:100%;padding:10px;border:1p
 .codebox code{flex:1;min-width:0;overflow-wrap:anywhere;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px}
 .hint{font-size:.8rem;color:var(--mute);margin:8px 0 0!important}
 details.link{margin-top:14px}details.link summary{cursor:pointer;color:var(--mute)}
+.err{color:var(--warn);font-size:.9rem;margin:10px 0 0}
+.topbar{margin:0 0 14px}
+.linkbtn{background:none;border:0;padding:0;color:var(--mute);font-weight:500;text-decoration:underline;cursor:pointer}
+.dev{padding:10px 0;border-top:1px solid var(--line)}.dev:first-child{border-top:0;padding-top:0}
+.dev .meta{margin:0}
+.tag{font-size:.75rem;color:var(--brand);margin-left:6px}
+.seg{display:none}
 .note{font-size:.8rem;color:var(--mute);margin-top:18px}
 [hidden]{display:none!important}
 </style>
@@ -53,59 +60,68 @@ details.link{margin-top:14px}details.link summary{cursor:pointer;color:var(--mut
   <h1>Habit Pings</h1>
   <p class="sub">Three nudges a day per habit. They stop the moment one reaches your device.</p>
 
-  <section class="card" id="channels">
-    <h2 class="h2">Where should pings go?</h2>
-    <div class="seg" role="radiogroup" aria-label="Notification channel">
-      <button type="button" role="radio" id="chWeb" data-ch="web">Browser</button>
-      <button type="button" role="radio" id="chApp" data-ch="fcm">Android app</button>
-    </div>
-
-    <div id="panelWeb" class="panel">
-      <p id="enableMsg">Turn on notifications in this browser to get your pings.</p>
-      <button id="enableBtn" type="button">Enable notifications</button>
-    </div>
-
-    <div id="panelApp" class="panel" hidden>
-      <div id="appBrowser">
-        <ol class="steps">
-          <li><a id="apkLink" href="#">Download the Android app</a> and install it (allow "install unknown apps" if asked).</li>
-          <li>Open it and tap <strong>Link existing habits</strong>.</li>
-          <li>Paste this link code:</li>
-        </ol>
-        <div class="codebox"><code id="linkCode" aria-label="Link code"></code><button type="button" class="ghost" id="copyCode">Copy</button></div>
-        <p class="hint">Keep the code private: anyone with it can manage your habits.</p>
-      </div>
-      <div id="appNative" hidden>
-        <p id="nativeMsg">Allow notifications to receive pings in this app.</p>
-        <button id="nativeBtn" type="button">Enable app notifications</button>
-        <details class="link">
-          <summary>Link existing habits</summary>
-          <label for="codeIn">Link code</label>
-          <input id="codeIn" type="text" autocomplete="off" placeholder="Paste the code from the website">
-          <p style="margin:10px 0 0"><button type="button" id="linkBtn">Link</button></p>
-        </details>
-      </div>
-    </div>
-  </section>
-
-  <section class="card">
-    <form id="form">
-      <label for="name">New habit</label>
-      <input id="name" type="text" maxlength="80" placeholder="e.g. Drink water" required>
-      <label>Reminder times (your local time)</label>
-      <div class="times">
-        <input type="time" id="t1" value="08:00" required>
-        <input type="time" id="t2" value="13:00" required>
-        <input type="time" id="t3" value="20:00" required>
-      </div>
-      <p style="margin:14px 0 0"><button type="submit">Add habit</button></p>
+  <section class="card" id="authView" hidden>
+    <h2 class="h2">Sign in</h2>
+    <form id="emailForm">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="email" inputmode="email" required placeholder="you@example.com">
+      <p style="margin:14px 0 0"><button type="submit" id="sendBtn">Email me a code</button></p>
+      <p class="hint">No password. We email you a 6-digit code. Your habits follow your account on every device.</p>
     </form>
+    <form id="codeForm" hidden>
+      <p id="codeMsg" class="hint" style="margin-top:0"></p>
+      <label for="code">6-digit code</label>
+      <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required>
+      <div class="actions" style="margin-top:14px">
+        <button type="submit" id="verifyBtn">Sign in</button>
+        <button type="button" class="ghost" id="resendBtn">Resend</button>
+        <button type="button" class="ghost" id="changeEmail">Change email</button>
+      </div>
+    </form>
+    <p id="authErr" class="err" hidden></p>
   </section>
 
-  <div id="list"></div>
+  <div id="appView" hidden>
+    <div class="row topbar"><span id="who" class="meta"></span><button type="button" class="ghost" id="signOut">Sign out</button></div>
 
-  <p class="note">A habit expires after 3 days without you marking it done or tapping its notification. On iPhone, add this page to your Home Screen first to receive browser notifications.</p>
+    <section class="card">
+      <h2 class="h2">This device</h2>
+      <p id="thisMsg" style="margin:0 0 10px"></p>
+      <button type="button" id="thisBtn" hidden></button>
+    </section>
+
+    <section class="card">
+      <h2 class="h2">Your devices</h2>
+      <div id="devices"></div>
+      <p class="hint">Every device that is On gets each reminder. Turn a device Off to stop pings there.</p>
+    </section>
+
+    <section class="card" id="apkCard" hidden>
+      <h2 class="h2">Get the Android app</h2>
+      <p style="margin:0 0 10px">Prefer a real app? <a id="apkLink" href="#" style="color:var(--brand);font-weight:600">Download it</a>, install it and sign in with the same email. Your habits are already there.</p>
+    </section>
+
+    <section class="card">
+      <form id="form">
+        <label for="name">New habit</label>
+        <input id="name" type="text" maxlength="80" placeholder="e.g. Drink water" required>
+        <label>Reminder times (your local time)</label>
+        <div class="times">
+          <input type="time" id="t1" value="08:00" required>
+          <input type="time" id="t2" value="13:00" required>
+          <input type="time" id="t3" value="20:00" required>
+        </div>
+        <p style="margin:14px 0 0"><button type="submit">Add habit</button></p>
+      </form>
+    </section>
+
+    <div id="list"></div>
+
+    <p class="note">A habit expires after 3 days without you marking it done or tapping its notification. On iPhone, add this page to your Home Screen first to receive browser notifications.</p>
+    <p class="note"><button type="button" class="linkbtn" id="delAcct">Delete my account and data</button></p>
+  </div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
