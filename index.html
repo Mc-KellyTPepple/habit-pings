@@ -61,23 +61,15 @@ details.link{margin-top:14px}details.link summary{cursor:pointer;color:var(--mut
   <p class="sub">Three nudges a day per habit. They stop the moment one reaches your device.</p>
 
   <section class="card" id="authView" hidden>
-    <h2 class="h2">Sign in</h2>
-    <form id="emailForm">
+    <h2 class="h2" id="authTitle">Sign in</h2>
+    <form id="authForm">
       <label for="email">Email</label>
       <input id="email" type="email" autocomplete="email" inputmode="email" required placeholder="you@example.com">
-      <p style="margin:14px 0 0"><button type="submit" id="sendBtn">Email me a code</button></p>
-      <p class="hint">No password. We email you a 6-digit code. Your habits follow your account on every device.</p>
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters">
+      <p style="margin:14px 0 0"><button type="submit" id="authBtn">Sign in</button></p>
     </form>
-    <form id="codeForm" hidden>
-      <p id="codeMsg" class="hint" style="margin-top:0"></p>
-      <label for="code">6-digit code</label>
-      <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required>
-      <div class="actions" style="margin-top:14px">
-        <button type="submit" id="verifyBtn">Sign in</button>
-        <button type="button" class="ghost" id="resendBtn">Resend</button>
-        <button type="button" class="ghost" id="changeEmail">Change email</button>
-      </div>
-    </form>
+    <p class="hint"><span id="authSwitchText">New here?</span> <button type="button" class="linkbtn" id="authToggle">Create an account</button></p>
     <p id="authErr" class="err" hidden></p>
   </section>
 

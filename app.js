@@ -44,9 +44,8 @@ function showAuth() {
   appActive = false;
   $("appView").hidden = true;
   $("authView").hidden = false;
-  $("emailForm").hidden = false;
-  $("codeForm").hidden = true;
-  $("authErr").hidden = true;
+  $("password").value = "";
+  authError("");
 }
 
 function authError(msg) { const e = $("authErr"); e.textContent = msg; e.hidden = !msg; }
@@ -68,56 +67,44 @@ sb.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_OUT") showAuth();
 });
 
-/* ---------------- email code sign-in ---------------- */
-let pendingEmail = "";
-let cooldown = 0, cooldownTimer = null;
+/* ---------------- email + password sign-in ---------------- */
+let signUpMode = false;
 
-function startCooldown(sec) {
-  cooldown = sec;
-  clearInterval(cooldownTimer);
-  const tick = () => {
-    $("resendBtn").disabled = cooldown > 0;
-    $("resendBtn").textContent = cooldown > 0 ? `Resend (${cooldown}s)` : "Resend";
-    if (cooldown <= 0) clearInterval(cooldownTimer);
-    cooldown--;
-  };
-  tick();
-  cooldownTimer = setInterval(tick, 1000);
-}
-
-async function sendCode(email) {
+function setMode(signUp) {
+  signUpMode = signUp;
+  $("authTitle").textContent = signUp ? "Create your account" : "Sign in";
+  $("authBtn").textContent = signUp ? "Create account" : "Sign in";
+  $("authSwitchText").textContent = signUp ? "Already have an account?" : "New here?";
+  $("authToggle").textContent = signUp ? "Sign in" : "Create an account";
+  $("password").autocomplete = signUp ? "new-password" : "current-password";
   authError("");
-  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
-  if (error) {
-    authError(/rate|too many|seconds/i.test(error.message) ? "Too many attempts. Wait a minute and try again." : error.message);
-    return false;
-  }
-  pendingEmail = email;
-  $("codeMsg").textContent = `We sent a code to ${email}. It can take a minute to arrive; check spam too.`;
-  $("emailForm").hidden = true;
-  $("codeForm").hidden = false;
-  $("code").value = "";
-  $("code").focus();
-  startCooldown(30);
-  return true;
+}
+$("authToggle").addEventListener("click", () => setMode(!signUpMode));
+
+function friendlyAuthError(msg) {
+  if (/invalid login credentials/i.test(msg)) return "Wrong email or password.";
+  if (/already registered|already been registered/i.test(msg)) return "That email already has an account. Sign in instead.";
+  if (/rate|too many|seconds/i.test(msg)) return "Too many attempts. Wait a minute and try again.";
+  if (/password/i.test(msg) && /(short|least|weak|characters)/i.test(msg)) return "Choose a longer password (at least 8 characters).";
+  if (/email not confirmed/i.test(msg)) return "This account needs email confirmation, which is switched on in the project settings.";
+  return msg;
 }
 
-$("emailForm").addEventListener("submit", async (e) => {
+$("authForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const btn = $("sendBtn"); btn.disabled = true;
-  await sendCode($("email").value.trim().toLowerCase());
-  btn.disabled = false;
-});
-
-$("resendBtn").addEventListener("click", () => { if (pendingEmail && cooldown <= 0) sendCode(pendingEmail); });
-$("changeEmail").addEventListener("click", () => { clearInterval(cooldownTimer); $("codeForm").hidden = true; $("emailForm").hidden = false; authError(""); });
-
-$("codeForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const btn = $("verifyBtn"); btn.disabled = true; authError("");
-  const token = $("code").value.replace(/\s+/g, "");
-  const { error } = await sb.auth.verifyOtp({ email: pendingEmail, token, type: "email" });
-  if (error) authError(/expired|invalid/i.test(error.message) ? "That code is wrong or has expired. Check it or tap Resend." : error.message);
+  const btn = $("authBtn"); btn.disabled = true; authError("");
+  const email = $("email").value.trim().toLowerCase();
+  const password = $("password").value;
+  try {
+    if (signUpMode) {
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if (error) throw error;
+      if (!data.session) authError("Account created, but email confirmation is switched on for this project, so you can't sign in yet.");
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    }
+  } catch (err) { authError(friendlyAuthError(err.message || String(err))); }
   btn.disabled = false;
 });
 
