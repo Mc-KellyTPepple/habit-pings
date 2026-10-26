@@ -1,0 +1,13 @@
+services:
+  - type: web
+    runtime: static
+    name: habit-pings
+    buildCommand: echo "static site"
+    staticPublishPath: .
+    headers:
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /config.js
+        name: Cache-Control
+        value: no-cache

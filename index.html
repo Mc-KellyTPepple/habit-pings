@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Habit Pings</title>
+<meta name="theme-color" content="#1f6f5c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#f6f3ee;--card:#fff;--ink:#1d2421;--mute:#6b746f;--line:#e5e0d6;--brand:#1f6f5c;--brand-ink:#fff;--warn:#b4532a;--ok:#2e7d4f}
+@media (prefers-color-scheme:dark){:root{--bg:#121715;--card:#1b2220;--ink:#e8ede9;--mute:#9aa6a0;--line:#2a3430;--brand:#3fa68c;--brand-ink:#0c1512;--warn:#e08a5c;--ok:#5cc489}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:max(16px,env(safe-area-inset-top)) 16px 48px}
+main{max-width:560px;margin:0 auto}
+h1{font-size:1.6rem;margin:8px 0 2px;letter-spacing:-.02em}
+.sub{color:var(--mute);margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.banner{border-color:var(--brand)}
+.banner p{margin:0 0 10px}
+button{font:inherit;border:0;border-radius:10px;padding:10px 14px;cursor:pointer;background:var(--brand);color:var(--brand-ink);font-weight:600}
+button.ghost{background:transparent;color:var(--mute);border:1px solid var(--line);font-weight:500}
+button:disabled{opacity:.5;cursor:default}
+label{display:block;font-size:.85rem;color:var(--mute);margin:10px 0 4px}
+input[type=text],input[type=time]{font:inherit;width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.times{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.habit h3{margin:0;font-size:1.05rem}
+.meta{color:var(--mute);font-size:.85rem;margin:2px 0 10px}
+.badge{font-size:.75rem;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}
+.badge.done{color:var(--ok);border-color:var(--ok)}
+.badge.soon{color:var(--warn);border-color:var(--warn)}
+.actions{display:flex;gap:8px}
+.empty{color:var(--mute);text-align:center;padding:24px 0}
+.note{font-size:.8rem;color:var(--mute);margin-top:18px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <h1>Habit Pings</h1>
+  <p class="sub">Three nudges a day per habit. They stop the moment one reaches your device.</p>
+
+  <section class="card banner" id="enable" hidden>
+    <p id="enableMsg">Turn on notifications on this device to get your pings.</p>
+    <button id="enableBtn">Enable notifications</button>
+  </section>
+
+  <section class="card">
+    <form id="form">
+      <label for="name">New habit</label>
+      <input id="name" type="text" maxlength="80" placeholder="e.g. Drink water" required>
+      <label>Reminder times (your local time)</label>
+      <div class="times">
+        <input type="time" id="t1" value="08:00" required>
+        <input type="time" id="t2" value="13:00" required>
+        <input type="time" id="t3" value="20:00" required>
+      </div>
+      <p style="margin:14px 0 0"><button type="submit">Add habit</button></p>
+    </form>
+  </section>
+
+  <div id="list"></div>
+
+  <p class="note">A habit expires after 3 days without you marking it done or tapping its notification. On iPhone, add this page to your Home Screen first to receive notifications.</p>
+</main>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

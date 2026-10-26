@@ -1,0 +1,14 @@
+{
+  "name": "Habit Pings",
+  "short_name": "Habit Pings",
+  "description": "Three gentle reminders a day per habit, until you get them.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f3ee",
+  "theme_color": "#1f6f5c",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
