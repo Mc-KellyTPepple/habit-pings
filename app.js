@@ -1,17 +1,20 @@
 const C = self.HP_CONFIG;
 const $ = (id) => document.getElementById(id);
 
+const isNative = !!(window.Capacitor && typeof Capacitor.isNativePlatform === "function" && Capacitor.isNativePlatform());
+
+function readKey() { try { return localStorage.getItem("hp_key"); } catch (_) { return null; } }
+function saveKey(k) { try { localStorage.setItem("hp_key", k); } catch (_) {} }
 function deviceKey() {
-  let k = null;
-  try { k = localStorage.getItem("hp_key"); } catch (_) {}
+  let k = readKey();
   if (!k) {
     const b = crypto.getRandomValues(new Uint8Array(32));
     k = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
-    try { localStorage.setItem("hp_key", k); } catch (_) {}
+    saveKey(k);
   }
   return k;
 }
-const KEY = deviceKey();
+let KEY = deviceKey();
 
 async function rpc(fn, args) {
   const r = await fetch(`${C.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
@@ -31,44 +34,108 @@ const b64ToU8 = (s) => {
 };
 const toB64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
+/* ---------------- channel picker ---------------- */
+let channel = "web";
+
+function showChannel(ch) {
+  channel = ch;
+  $("chWeb").setAttribute("aria-checked", String(ch === "web"));
+  $("chApp").setAttribute("aria-checked", String(ch === "fcm"));
+  $("panelWeb").hidden = ch !== "web";
+  $("panelApp").hidden = ch !== "fcm";
+}
+
+async function chooseChannel(ch) {
+  showChannel(ch);
+  try { await rpc("register_device", { p_key: KEY, p_channel: ch }); } catch (e) { alert(e.message); }
+}
+
+/* ---------------- browser (Web Push) ---------------- */
 const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
-async function subscribe() {
+async function subscribe(setChannel) {
   const reg = await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(C.VAPID_PUBLIC) });
-  await rpc("register_device", {
-    p_key: KEY, p_endpoint: sub.endpoint,
-    p_p256dh: toB64(sub.getKey("p256dh")), p_auth: toB64(sub.getKey("auth")),
-  });
+  const args = { p_key: KEY, p_endpoint: sub.endpoint, p_p256dh: toB64(sub.getKey("p256dh")), p_auth: toB64(sub.getKey("auth")) };
+  if (setChannel) args.p_channel = "web";
+  await rpc("register_device", args);
 }
 
-async function refreshBanner() {
-  const box = $("enable");
+function refreshWebPanel() {
+  const btn = $("enableBtn"), msg = $("enableMsg");
+  btn.hidden = false;
   if (!supported) {
-    box.hidden = false;
-    $("enableMsg").textContent = "This browser can't receive push notifications. On iPhone, add the app to your Home Screen and open it from there.";
-    $("enableBtn").hidden = true;
-    return;
-  }
-  if (Notification.permission === "granted") {
-    box.hidden = true;
-    subscribe().catch(() => {}); // keep subscription fresh
+    msg.textContent = "This browser can't receive push notifications. On iPhone, add the app to your Home Screen and open it from there.";
+    btn.hidden = true;
+  } else if (Notification.permission === "granted") {
+    msg.textContent = "Browser notifications are on for this device.";
+    btn.hidden = true;
+    subscribe(false).catch(() => {});
   } else if (Notification.permission === "denied") {
-    box.hidden = false;
-    $("enableMsg").textContent = "Notifications are blocked for this site. Allow them in your browser or phone settings, then reload.";
-    $("enableBtn").hidden = true;
+    msg.textContent = "Notifications are blocked for this site. Allow them in your browser or phone settings, then reload.";
+    btn.hidden = true;
   } else {
-    box.hidden = false;
+    msg.textContent = "Turn on notifications in this browser to get your pings.";
   }
 }
 
 $("enableBtn").addEventListener("click", async () => {
   const p = await Notification.requestPermission();
-  if (p === "granted") { await subscribe(); }
-  refreshBanner();
+  if (p === "granted") { try { await subscribe(true); showChannel("web"); } catch (e) { alert(e.message); } }
+  refreshWebPanel();
 });
 
+/* ---------------- Android app (FCM via Capacitor) ---------------- */
+let nativeReady = false;
+
+async function registerNative(askPermission) {
+  const PN = window.Capacitor.Plugins.PushNotifications;
+  let perm = await PN.checkPermissions();
+  if (perm.receive !== "granted" && askPermission) perm = await PN.requestPermissions();
+  if (perm.receive !== "granted") { $("nativeMsg").textContent = "Notifications are off. Enable them in Android settings, then tap the button."; $("nativeBtn").hidden = false; return; }
+  if (!nativeReady) {
+    nativeReady = true;
+    try { await PN.createChannel({ id: "default", name: "Habit pings", importance: 5, visibility: 1 }); } catch (_) {}
+    await PN.addListener("registration", async (t) => {
+      try {
+        await rpc("register_device", { p_key: KEY, p_fcm_token: t.value, p_channel: "fcm" });
+        $("nativeMsg").textContent = "App notifications are on. Pings will arrive on this phone.";
+        $("nativeBtn").hidden = true;
+      } catch (e) { $("nativeMsg").textContent = "Couldn't register this phone: " + e.message; }
+    });
+    await PN.addListener("registrationError", (e) => { $("nativeMsg").textContent = "Push registration failed: " + (e && e.error ? e.error : "unknown error"); });
+    await PN.addListener("pushNotificationReceived", () => load());
+    await PN.addListener("pushNotificationActionPerformed", (a) => {
+      const tok = a && a.notification && a.notification.data && a.notification.data.token;
+      if (tok) rpc("touch_by_token", { p_token: tok }).catch(() => {});
+      load();
+    });
+  }
+  await PN.register();
+}
+
+$("nativeBtn").addEventListener("click", () => registerNative(true).catch((e) => alert(e.message)));
+
+$("linkBtn").addEventListener("click", async () => {
+  const code = $("codeIn").value.trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(code)) { alert("That doesn't look like a link code."); return; }
+  try {
+    const info = await rpc("device_info", { p_key: code });
+    if (!info || !info.channel) { alert("Link code not found. Copy it again from the website."); return; }
+    KEY = code; saveKey(code);
+    $("codeIn").value = "";
+    await registerNative(true);
+    load();
+  } catch (e) { alert(e.message); }
+});
+
+$("copyCode").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(KEY); $("copyCode").textContent = "Copied"; setTimeout(() => ($("copyCode").textContent = "Copy"), 1500); }
+  catch (_) { const r = document.createRange(); r.selectNodeContents($("linkCode")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+});
+
+/* ---------------- habits ---------------- */
 function fmtExpiry(iso) {
   const ms = new Date(iso) - Date.now();
   if (ms <= 0) return { t: "expiring now", soon: true };
@@ -119,17 +186,38 @@ $("form").addEventListener("submit", async (e) => {
       p_tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     });
     $("name").value = "";
-    if (supported && Notification.permission === "default") $("enable").hidden = false;
   } catch (err) { alert(err.message); }
   btn.disabled = false;
   load();
 });
 
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js").then(refreshBanner).catch(refreshBanner);
-  navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.type === "refresh") load(); });
-} else refreshBanner();
+/* ---------------- start up ---------------- */
+$("apkLink").href = C.APK_URL;
+$("linkCode").textContent = KEY;
+$("chWeb").addEventListener("click", () => chooseChannel("web"));
+$("chApp").addEventListener("click", () => chooseChannel("fcm"));
+
+async function start() {
+  let info = {};
+  try { await rpc("register_device", { p_key: KEY }); info = (await rpc("device_info", { p_key: KEY })) || {}; } catch (_) {}
+
+  if (isNative) {
+    // inside the Android app: this device always uses the app channel
+    document.querySelector(".seg").hidden = true;
+    $("panelWeb").hidden = true; $("panelApp").hidden = false;
+    $("appBrowser").hidden = true; $("appNative").hidden = false;
+    registerNative(false).catch(() => {});
+  } else {
+    showChannel(info.channel === "fcm" ? "fcm" : "web");
+    refreshWebPanel();
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").then(refreshWebPanel).catch(() => {});
+      navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.type === "refresh") load(); });
+    }
+  }
+  load();
+}
+start();
 
 // refresh when returning to the app; no polling, so no needless Supabase traffic
 document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
-rpc("register_device", { p_key: KEY }).catch(() => {}).finally(load);

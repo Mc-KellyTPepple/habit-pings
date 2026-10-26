@@ -1,0 +1,12 @@
+{
+  "name": "habit-pings-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Thin Android shell for Habit Pings. Loads the live site and receives FCM pushes.",
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/push-notifications": "^7.0.0"
+  }
+}

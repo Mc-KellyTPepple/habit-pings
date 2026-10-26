@@ -1,0 +1,14 @@
+{
+  "appId": "com.habitpings.app",
+  "appName": "Habit Pings",
+  "webDir": "www",
+  "server": {
+    "url": "https://habit-pings.onrender.com",
+    "cleartext": false
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  }
+}

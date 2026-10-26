@@ -24,7 +24,7 @@ button.ghost{background:transparent;color:var(--mute);border:1px solid var(--lin
 button:disabled{opacity:.5;cursor:default}
 label{display:block;font-size:.85rem;color:var(--mute);margin:10px 0 4px}
 input[type=text],input[type=time]{font:inherit;width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
-.times{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.times{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.times input{min-width:0;padding:10px 6px}
 .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .habit h3{margin:0;font-size:1.05rem}
 .meta{color:var(--mute);font-size:.85rem;margin:2px 0 10px}
@@ -33,6 +33,17 @@ input[type=text],input[type=time]{font:inherit;width:100%;padding:10px;border:1p
 .badge.soon{color:var(--warn);border-color:var(--warn)}
 .actions{display:flex;gap:8px}
 .empty{color:var(--mute);text-align:center;padding:24px 0}
+.h2{font-size:1.05rem;margin:0 0 12px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:14px}
+.seg button{background:transparent;color:var(--mute);font-weight:500}
+.seg button[aria-checked=true]{background:var(--brand);color:var(--brand-ink);font-weight:600}
+.panel p{margin:0 0 10px}
+.steps{padding-left:20px;margin:0 0 10px}.steps li{margin-bottom:6px}
+.steps a{color:var(--brand);font-weight:600}
+.codebox{display:flex;gap:8px;align-items:center}
+.codebox code{flex:1;min-width:0;overflow-wrap:anywhere;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px}
+.hint{font-size:.8rem;color:var(--mute);margin:8px 0 0!important}
+details.link{margin-top:14px}details.link summary{cursor:pointer;color:var(--mute)}
 .note{font-size:.8rem;color:var(--mute);margin-top:18px}
 [hidden]{display:none!important}
 </style>
@@ -42,9 +53,39 @@ input[type=text],input[type=time]{font:inherit;width:100%;padding:10px;border:1p
   <h1>Habit Pings</h1>
   <p class="sub">Three nudges a day per habit. They stop the moment one reaches your device.</p>
 
-  <section class="card banner" id="enable" hidden>
-    <p id="enableMsg">Turn on notifications on this device to get your pings.</p>
-    <button id="enableBtn">Enable notifications</button>
+  <section class="card" id="channels">
+    <h2 class="h2">Where should pings go?</h2>
+    <div class="seg" role="radiogroup" aria-label="Notification channel">
+      <button type="button" role="radio" id="chWeb" data-ch="web">Browser</button>
+      <button type="button" role="radio" id="chApp" data-ch="fcm">Android app</button>
+    </div>
+
+    <div id="panelWeb" class="panel">
+      <p id="enableMsg">Turn on notifications in this browser to get your pings.</p>
+      <button id="enableBtn" type="button">Enable notifications</button>
+    </div>
+
+    <div id="panelApp" class="panel" hidden>
+      <div id="appBrowser">
+        <ol class="steps">
+          <li><a id="apkLink" href="#">Download the Android app</a> and install it (allow "install unknown apps" if asked).</li>
+          <li>Open it and tap <strong>Link existing habits</strong>.</li>
+          <li>Paste this link code:</li>
+        </ol>
+        <div class="codebox"><code id="linkCode" aria-label="Link code"></code><button type="button" class="ghost" id="copyCode">Copy</button></div>
+        <p class="hint">Keep the code private: anyone with it can manage your habits.</p>
+      </div>
+      <div id="appNative" hidden>
+        <p id="nativeMsg">Allow notifications to receive pings in this app.</p>
+        <button id="nativeBtn" type="button">Enable app notifications</button>
+        <details class="link">
+          <summary>Link existing habits</summary>
+          <label for="codeIn">Link code</label>
+          <input id="codeIn" type="text" autocomplete="off" placeholder="Paste the code from the website">
+          <p style="margin:10px 0 0"><button type="button" id="linkBtn">Link</button></p>
+        </details>
+      </div>
+    </div>
   </section>
 
   <section class="card">
@@ -63,7 +104,7 @@ input[type=text],input[type=time]{font:inherit;width:100%;padding:10px;border:1p
 
   <div id="list"></div>
 
-  <p class="note">A habit expires after 3 days without you marking it done or tapping its notification. On iPhone, add this page to your Home Screen first to receive notifications.</p>
+  <p class="note">A habit expires after 3 days without you marking it done or tapping its notification. On iPhone, add this page to your Home Screen first to receive browser notifications.</p>
 </main>
 <script src="config.js"></script>
 <script src="app.js"></script>
